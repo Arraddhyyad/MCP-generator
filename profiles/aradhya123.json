@@ -1,0 +1,28 @@
+{
+  "name": "Aradhya",
+  "email": "aradhya@example.com",
+  "phone": "+1-555-0123",
+  "education": [
+    "B.Sc in Computer Science, Arizona State University",
+    "Relevant Coursework: Machine Learning, Data Structures, Algorithms"
+  ],
+  "experience": [
+    "Research Assistant - AI Project on Natural Language Processing (6 months)",
+    "Instructor at Fundemics - Teaching Python and Data Science fundamentals",
+    "Freelance Data Analyst - Worked on 3+ projects involving data visualization"
+  ],
+  "skills": [
+    "Python",
+    "Machine Learning",
+    "Data Analysis",
+    "Pandas",
+    "NumPy",
+    "Scikit-learn",
+    "SQL",
+    "Git",
+    "Jupyter Notebooks",
+    "Data Visualization"
+  ],
+  "resume_path": null,
+  "cover_letter_path": null
+}
