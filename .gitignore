@@ -1,3 +1,5 @@
 .env.env
 venv/
-.env # Add this if not already present
+.env 
+token.json
+token.pickle

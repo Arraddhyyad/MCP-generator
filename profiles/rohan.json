@@ -1,0 +1,28 @@
+{
+  "name": "Rohan Kapoor",
+  "email": "rohan.kapoor@example.com",
+  "phone": "+1-555-0456",
+  "education": [
+    "M.S. in Data Engineering, Northeastern University",
+    "Relevant Coursework: Big Data, Data Pipelines, Distributed Systems"
+  ],
+  "experience": [
+    "Data Engineering Intern - Built ETL pipelines using Apache Airflow",
+    "Graduate Teaching Assistant - Database Systems course",
+    "Volunteer - Data cleanup project for non-profit NGO"
+  ],
+  "skills": [
+    "Python",
+    "Apache Airflow",
+    "SQL",
+    "BigQuery",
+    "Spark",
+    "Data Modeling",
+    "ETL",
+    "Docker",
+    "Cloud Functions",
+    "Linux Shell Scripting"
+  ],
+  "resume_path": null,
+  "cover_letter_path": null
+}

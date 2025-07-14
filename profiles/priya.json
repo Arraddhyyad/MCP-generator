@@ -1,0 +1,27 @@
+{
+  "name": "Priya Mehta",
+  "email": "priya.mehta@example.com",
+  "phone": "+91-9876543210",
+  "education": [
+    "B.Tech in Information Technology, VIT University",
+    "Relevant Coursework: Web Technologies, UI/UX Design"
+  ],
+  "experience": [
+    "Frontend Intern - Built responsive components using React and Tailwind",
+    "Freelance Web Developer - Created 5+ portfolio and e-commerce websites"
+  ],
+  "skills": [
+    "HTML",
+    "CSS",
+    "JavaScript",
+    "React.js",
+    "TailwindCSS",
+    "TypeScript",
+    "Figma",
+    "Git",
+    "Responsive Design",
+    "UI/UX Principles"
+  ],
+  "resume_path": null,
+  "cover_letter_path": null
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Ayesha Siddiqui",
+  "email": "ayesha.siddiqui@example.com",
+  "phone": "+91-9988776655",
+  "education": [
+    "Bachelor of Design, NIFT Delhi",
+    "Relevant Coursework: Human-Centered Design, Interaction Design"
+  ],
+  "experience": [
+    "Design Intern - Revamped UX for ed-tech mobile app",
+    "Freelance Designer - Conducted 10+ user research studies"
+  ],
+  "skills": [
+    "Figma",
+    "Adobe XD",
+    "User Research",
+    "Wireframing",
+    "Prototyping",
+    "Design Thinking",
+    "Interaction Design",
+    "Accessibility",
+    "Usability Testing",
+    "Visual Design"
+  ],
+  "resume_path": null,
+  "cover_letter_path": null
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Aditya Narang",
+  "email": "aditya.narang@example.com",
+  "phone": "+1-555-0789",
+  "education": [
+    "B.E. in Computer Engineering, Pune Institute of Computer Technology",
+    "Relevant Coursework: Databases, Operating Systems, Software Engineering"
+  ],
+  "experience": [
+    "Backend Developer Intern - Built REST APIs using Flask",
+    "Open Source Contributor - Bug fixes in Django REST Framework"
+  ],
+  "skills": [
+    "Python",
+    "Flask",
+    "Django",
+    "PostgreSQL",
+    "REST APIs",
+    "Docker",
+    "GitHub",
+    "CI/CD",
+    "Unit Testing",
+    "Agile"
+  ],
+  "resume_path": null,
+  "cover_letter_path": null
+}
