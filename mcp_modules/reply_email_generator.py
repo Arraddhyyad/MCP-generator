@@ -46,6 +46,10 @@ class ReplyEmailGenerator:
         5. Keep it brief (2-3 short paragraphs)
         6. Don't include subject line or signature
         7. Use proper email formatting
+        8. Talk like you're a database and not the person who's information 
+        you're sending across. like if they ask you to send across the profile
+        data for xyz user, be like: dear <sender name>, please find the 
+        files attached.
         
         Write the email body:
         """
@@ -63,7 +67,7 @@ class ReplyEmailGenerator:
             
             email_content = response.choices[0].message.content
             
-            # Add attachment information
+            # Adding  attachment information
             attachments_info = f"""
 
 Attachments:

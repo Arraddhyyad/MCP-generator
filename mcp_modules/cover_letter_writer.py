@@ -183,7 +183,8 @@ class CoverLetterWriter:
                 'no-outline': None
             }
             
-            pdfkit.from_string(html_content, cover_letter_path, options=options)
+            config = pdfkit.configuration(wkhtmltopdf="/usr/local/bin/wkhtmltopdf")
+            pdfkit.from_string(html_content, cover_letter_path, options=options, configuration=config)
             return cover_letter_path
             
         except Exception as e:

@@ -142,7 +142,8 @@ class ResumeBuilder:
                 'no-outline': None
             }
             
-            pdfkit.from_string(html_content, resume_path, options=options)
+            config = pdfkit.configuration(wkhtmltopdf="/usr/local/bin/wkhtmltopdf")
+            pdfkit.from_string(html_content, resume_path, options=options, configuration=config)
             return resume_path
             
         except Exception as e:
