@@ -7,6 +7,8 @@ import os
 import pdfkit
 from jinja2 import Template
 from typing import Dict, Any
+import json
+from utils import safe_string_processing
 
 
 class ResumeBuilder:
@@ -113,9 +115,9 @@ class ResumeBuilder:
         template_data = {
             "name": user_profile.get("name", user_id),
             "email": user_profile.get("email", ""),
-            "education": user_profile.get("education", []),
-            "experience": user_profile.get("experience", []),
-            "skills": user_profile.get("skills", []),
+            "education": safe_string_processing(user_profile.get("education", []), to_lower=False),
+            "experience": safe_string_processing(user_profile.get("experience", []), to_lower=False),
+            "skills": safe_string_processing(user_profile.get("skills", []), to_lower=False),
             "job_title": job_info.get("job_title", ""),
             "relevant_skills": self._find_relevant_skills(
                 user_profile.get("skills", []), 
@@ -160,24 +162,16 @@ class ResumeBuilder:
             return []
         
         relevant = []
-        for job_skill in job_skills:
-            for user_skill in user_skills:
-                if job_skill.lower() in user_skill.lower() or user_skill.lower() in job_skill.lower():
-                    if job_skill not in relevant:
-                        relevant.append(job_skill)
-        
+        user_skills_clean = safe_string_processing(user_skills, to_lower=True)
+        job_skills_clean = safe_string_processing(job_skills, to_lower=True)
+        relevant = [job for job in job_skills if any(job.lower() in user for user in user_skills_clean or user in job.lower() for user in user_skills_clean)]
+
         return relevant
 
 
 def resume_builder(context: Dict[str, Any]) -> Dict[str, Any]:
     """
-    MCP-compliant function to build resume
-    
-    Args:
-        context: Dict with 'output' containing 'user_profile' and 'job_info'
-        
-    Returns:
-        Updated context with resume path
+    MCP-compliant function to build resume or reuse if already exists
     """
     builder = ResumeBuilder()
     
@@ -185,12 +179,43 @@ def resume_builder(context: Dict[str, Any]) -> Dict[str, Any]:
     job_info = context["output"]["job_info"]
     user_id = context["input"]["user_id"]
     
-    resume_path = builder.generate_resume(user_profile, job_info, user_id)
+    profile_path = os.path.join("profiles", f"{user_id}.json")
+    resume_path = None
+
+    # Check if resume already exists
+    if os.path.exists(profile_path):
+        try:
+            with open(profile_path, "r", encoding="utf-8") as f:
+                profile_data = json.load(f)
+            
+            existing_resume_path = profile_data.get("resume_path")
+            if existing_resume_path and os.path.exists(existing_resume_path):
+                print(f"✅ Reusing existing resume for {user_id}")
+                resume_path = existing_resume_path
+        except Exception as e:
+            print(f"Error reading profile JSON for {user_id}: {e}")
+
+    # If not cached, generate and update
+    if not resume_path:
+        resume_path = builder.generate_resume(user_profile, job_info, user_id)
+        
+        # Update profile JSON with resume_path
+        if os.path.exists(profile_path):
+            try:
+                with open(profile_path, "r", encoding="utf-8") as f:
+                    profile_data = json.load(f)
+                
+                profile_data["resume_path"] = resume_path
+                
+                with open(profile_path, "w", encoding="utf-8") as f:
+                    json.dump(profile_data, f, indent=2)
+            except Exception as e:
+                print(f"Error updating profile JSON for {user_id}: {e}")
     
-    
+    # Final context update
     context["output"]["resume_path"] = resume_path
     
-   
+    # Optional: update retriever tool
     if "retriever" in context["output"]:
         context["output"]["retriever"].update_profile_paths(user_id, resume_path=resume_path)
     

@@ -1,28 +1,41 @@
 {
-  "name": "Aradhya",
-  "email": "aradhya@example.com",
-  "phone": "+1-555-0123",
+  "name": "Aradhya Kapoor",
+  "email": "aradhya.kapoor@example.com",
+  "phone": "+1-555-4321",
   "education": [
-    "B.Sc in Computer Science, Arizona State University",
-    "Relevant Coursework: Machine Learning, Data Structures, Algorithms"
+    {
+      "degree": "M.S. in Data Science",
+      "institution": "University of Washington",
+      "year": 2024,
+      "details": "Focus on NLP, recommendation systems, and statistical modeling"
+    }
   ],
   "experience": [
-    "Research Assistant - AI Project on Natural Language Processing (6 months)",
-    "Instructor at Fundemics - Teaching Python and Data Science fundamentals",
-    "Freelance Data Analyst - Worked on 3+ projects involving data visualization"
+    {
+      "role": "Data Science Intern",
+      "company": "Amazon",
+      "duration_years": 0.5,
+      "details": "Developed NLP-based search ranking algorithms"
+    },
+    {
+      "role": "Machine Learning Engineer",
+      "company": "StartAI",
+      "duration_years": 1.2,
+      "details": "Worked on customer analytics and predictive modeling"
+    }
   ],
   "skills": [
     "Python",
     "Machine Learning",
-    "Data Analysis",
-    "Pandas",
-    "NumPy",
+    "NLP",
     "Scikit-learn",
+    "PyTorch",
+    "AWS",
     "SQL",
-    "Git",
-    "Jupyter Notebooks",
-    "Data Visualization"
+    "Data Visualization",
+    "Feature Engineering",
+    "A/B Testing"
   ],
-  "resume_path": null,
-  "cover_letter_path": null
+  "resume_path": "outputs/aradhya123/resume.pdf",
+  "cover_letter_path": "outputs/aradhya123/cover_letter.pdf"
 }

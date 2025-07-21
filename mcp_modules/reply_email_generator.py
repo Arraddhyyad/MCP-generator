@@ -6,6 +6,7 @@ Composes professional reply emails with attachments
 import openai
 import os
 from typing import Dict, Any
+from utils import safe_string_processing
 
 
 class ReplyEmailGenerator:

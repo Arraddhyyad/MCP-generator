@@ -1,27 +1,40 @@
 {
-  "name": "Rohan Kapoor",
-  "email": "rohan.kapoor@example.com",
-  "phone": "+1-555-0456",
+  "name": "Rohan Mehta",
+  "email": "rohan.mehta@example.com",
+  "phone": "+1-555-2468",
   "education": [
-    "M.S. in Data Engineering, Northeastern University",
-    "Relevant Coursework: Big Data, Data Pipelines, Distributed Systems"
+    {
+      "degree": "B.S. in Statistics and Data Science",
+      "institution": "University of Michigan",
+      "year": 2024,
+      "details": "Focus on applied ML, probability, and statistical computing"
+    }
   ],
   "experience": [
-    "Data Engineering Intern - Built ETL pipelines using Apache Airflow",
-    "Graduate Teaching Assistant - Database Systems course",
-    "Volunteer - Data cleanup project for non-profit NGO"
+    {
+      "role": "Machine Learning Intern",
+      "company": "IBM Research",
+      "duration_years": 0.7,
+      "details": "Developed ML models for NLP-based document classification"
+    },
+    {
+      "role": "Data Scientist",
+      "company": "DataWorks Inc.",
+      "duration_years": 1.3,
+      "details": "Worked on ML-driven analytics for finance clients"
+    }
   ],
   "skills": [
     "Python",
-    "Apache Airflow",
+    "Machine Learning",
+    "NLP",
+    "R",
+    "PyTorch",
+    "TensorFlow",
     "SQL",
-    "BigQuery",
-    "Spark",
-    "Data Modeling",
-    "ETL",
-    "Docker",
-    "Cloud Functions",
-    "Linux Shell Scripting"
+    "Data Wrangling",
+    "Feature Engineering",
+    "Model Deployment"
   ],
   "resume_path": null,
   "cover_letter_path": null

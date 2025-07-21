@@ -12,6 +12,7 @@ from googleapiclient.errors import HttpError
 import base64
 from mcp_modules.email_interpreter import EmailInterpreter 
 from mcp_modules.gmail_sender import send_email_with_attachments
+from mcp_modules.candidate_matcher import CandidateMatcher
 
 # Gmail API setup
 SCOPES = ['https://www.googleapis.com/auth/gmail.send',
@@ -72,7 +73,7 @@ class GmailService:
     def get_recent_hr_emails(self, max_results=5):
         try:
             query = "from:hr OR from:recruiter OR from:hiring OR subject:job OR subject:interview OR subject:position"
-            results = self.service.users().messages().list(userId="me", q=query, maxResults=max_results).execute()
+            results = self.service.users().messages().list(userId="me", q=query,labelIds=["INBOX"], maxResults=max_results).execute()
             messages = results.get("messages", [])
             
             hr_emails = []
@@ -110,7 +111,10 @@ class GmailService:
             body = base64.urlsafe_b64decode(payload["body"]["data"]).decode("utf-8")
         return body
 
+# Initialize services
 gmail_service = GmailService()
+email_interpreter = EmailInterpreter()
+candidate_matcher = CandidateMatcher()
 
 # Simple HTML template
 HTML_TEMPLATE = """
@@ -130,10 +134,14 @@ HTML_TEMPLATE = """
         .btn { background: #007bff; color: white; padding: 10px 20px; border: none; cursor: pointer; margin: 5px; }
         .btn:hover { background: #0056b3; }
         .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .btn.success { background: #28a745; }
         .hidden { display: none; }
         .result { background: #e9ecef; padding: 15px; margin: 10px 0; border-left: 4px solid #28a745; }
         .error { border-left-color: #dc3545; background: #f8d7da; }
         .processing { border-left-color: #ffc107; background: #fff3cd; }
+        .candidate-card { background: #f8f9fa; padding: 15px; margin: 10px 0; border-left: 4px solid #28a745; }
+        .candidate-score { font-weight: bold; color: #28a745; }
+        .score-breakdown { font-size: 12px; color: #666; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -152,11 +160,18 @@ HTML_TEMPLATE = """
     <div class="section">
         <h3>💬 Email Response Assistant</h3>
         <button class="btn" onclick="showEmailSelection()">Help Me Respond</button>
+        <button class="btn success" onclick="showCandidateMatching()">Find Best Candidate</button>
         
         <div id="emailSelection" class="hidden">
             <h4>Select emails to respond to:</h4>
             <div id="emailList"></div>
             <button class="btn" onclick="processEmails()">Process Selected Emails</button>
+        </div>
+        
+        <div id="candidateMatching" class="hidden">
+            <h4>Select emails to find best candidates for:</h4>
+            <div id="candidateEmailList"></div>
+            <button class="btn success" onclick="processCandidateMatching()">Find Best Candidates</button>
         </div>
         
         <div id="results"></div>
@@ -166,8 +181,8 @@ HTML_TEMPLATE = """
         let hrEmails = {{ hr_emails_json }};
         
         function showEmailSelection() {
-            const selection = document.getElementById('emailSelection');
-            selection.classList.remove('hidden');
+            document.getElementById('emailSelection').classList.remove('hidden');
+            document.getElementById('candidateMatching').classList.add('hidden');
             
             const emailList = document.getElementById('emailList');
             emailList.innerHTML = '';
@@ -186,6 +201,30 @@ HTML_TEMPLATE = """
                     </label>
                 `;
                 emailList.appendChild(div);
+            });
+        }
+        
+        function showCandidateMatching() {
+            document.getElementById('candidateMatching').classList.remove('hidden');
+            document.getElementById('emailSelection').classList.add('hidden');
+            
+            const candidateEmailList = document.getElementById('candidateEmailList');
+            candidateEmailList.innerHTML = '';
+            
+            if (hrEmails.length === 0) {
+                candidateEmailList.innerHTML = '<p>No HR emails found.</p>';
+                return;
+            }
+            
+            hrEmails.forEach((email, index) => {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <label style="display: block; margin: 10px 0;">
+                        <input type="checkbox" value="${index}" style="margin-right: 10px;">
+                        <strong>${email.subject}</strong> - ${email.sender}
+                    </label>
+                `;
+                candidateEmailList.appendChild(div);
             });
         }
         
@@ -225,77 +264,149 @@ HTML_TEMPLATE = """
             button.textContent = 'Process Selected Emails';
         }
         
+        async function processCandidateMatching() {
+            const checkboxes = document.querySelectorAll('#candidateEmailList input[type="checkbox"]:checked');
+            
+            if (checkboxes.length === 0) {
+                alert('Please select at least one email.');
+                return;
+            }
+            
+            const button = document.querySelector('button[onclick="processCandidateMatching()"]');
+            button.disabled = true;
+            button.textContent = 'Finding Candidates...';
+            
+            const results = document.getElementById('results');
+            results.innerHTML = '<h4>Candidate Matching Results:</h4>';
+            
+            for (let checkbox of checkboxes) {
+                const emailIndex = checkbox.value;
+                const email = hrEmails[emailIndex];
+                
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result processing';
+                resultDiv.innerHTML = `<h5>🔍 ${email.subject}</h5><p>🔄 Finding best candidate...</p>`;
+                results.appendChild(resultDiv);
+                
+                try {
+                    await processCandidateMatchingChain(email, resultDiv);
+                } catch (error) {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+                }
+            }
+            
+            button.disabled = false;
+            button.textContent = 'Find Best Candidates';
+        }
+        
         async function processEmailChain(email, resultDiv) {
             try {
-                // Step 1: Interpret email
-                resultDiv.innerHTML += '<p>📋 Interpreting email...</p>';
+                // Interpret email and get user info
                 const interpretation = await callAPI('/tools/email_interpreter', {
                     input: { email_text: email.body }
                 });
                 
                 const userId = interpretation.output?.job_info?.user_id || 'default_user';
-                resultDiv.innerHTML += `<p>✅ Email interpreted (User: ${userId})</p>`;
                 
-                // Step 2: Get profile
-                resultDiv.innerHTML += '<p>👤 Retrieving profile...</p>';
+                // Check if this is a candidate matching request
+                if (interpretation.output?.job_info?.request_type === 'find_best_candidate') {
+                    await processCandidateMatchingChain(email, resultDiv);
+                    return;
+                }
+                
+                // Process normal user-specific request
+                await processUserRequest(userId, interpretation, resultDiv, email);
+                
+            } catch (error) {
+                throw error;
+            }
+        }
+        
+        async function processUserRequest(userId, interpretation, resultDiv, email) {
+            try {
+                resultDiv.innerHTML += `<p>✅ Processing for user: ${userId}</p>`;
+                
+                // Get profile
                 const profile = await callAPI('/tools/profile_retriever', {
                     input: { user_id: userId }
                 });
-                resultDiv.innerHTML += '<p>✅ Profile retrieved</p>';
                 
-                // Step 3: Build resume
-                resultDiv.innerHTML += '<p>📄 Building resume...</p>';
+                // Build resume
                 const resume = await callAPI('/tools/resume_builder', {
                     input: { user_id: userId },
-                    output: {
-                        user_profile: profile.output?.user_profile || profile.profile,
-                        job_info: interpretation.output?.job_info || interpretation.job_info
-                    }
+                    output: { user_profile: profile.output.user_profile, job_info: interpretation.output.job_info }
                 });
-                resultDiv.innerHTML += '<p>✅ Resume built</p>';
                 
-                // Step 4: Write cover letter
-                resultDiv.innerHTML += '<p>📝 Writing cover letter...</p>';
+                // Write cover letter
                 const coverLetter = await callAPI('/tools/cover_letter_writer', {
                     input: { user_id: userId },
-                    output: {
-                        user_profile: profile.output?.user_profile || profile.profile,
-                        job_info: interpretation.output?.job_info || interpretation.job_info
-                    }
+                    output: { user_profile: profile.output.user_profile, job_info: interpretation.output.job_info }
                 });
-                resultDiv.innerHTML += '<p>✅ Cover letter written</p>';
                 
-                // Step 5: Generate reply
-                resultDiv.innerHTML += '<p>✉️ Generating reply...</p>';
+                // Generate reply
                 const reply = await callAPI('/tools/reply_email_generator', {
                     input: { user_id: userId },
                     output: {
-                        user_profile: profile.output?.user_profile || profile.profile,
-                        job_info: interpretation.output?.job_info || interpretation.job_info,
-                        resume_path: resume.output?.resume_path || 'outputs/sample_resume.pdf',
-                        cover_letter_path: coverLetter.output?.cover_letter_path || 'outputs/sample_cover.pdf'
+                        user_profile: profile.output.user_profile,
+                        job_info: interpretation.output.job_info,
+                        resume_path: resume.output.resume_path,
+                        cover_letter_path: coverLetter.output.cover_letter_path
                     }
                 });
-                resultDiv.innerHTML += '<p>✅ Reply generated</p>';
                 
-                // Step 6: Send email
-                resultDiv.innerHTML += '<p>📤 Sending email...</p>';
-                const sendResult = await callAPI('/tools/send_reply_email', {
-                    input: {
-                        user_id: userId,
-                        to_email: email.sender,
-                        original_sender: email.sender
-                    },
+                // Send email
+                await callAPI('/tools/send_reply_email', {
+                    input: { user_id: userId, to_email: email.sender },
                     output: {
                         email_subject: `Re: ${email.subject}`,
-                        email_body: reply.output?.email_body || reply.reply,
-                        resume_path: resume.output?.resume_path || 'outputs/sample_resume.pdf',
-                        cover_letter_path: coverLetter.output?.cover_letter_path || 'outputs/sample_cover.pdf'
+                        email_body: reply.output.email_body,
+                        resume_path: resume.output.resume_path,
+                        cover_letter_path: coverLetter.output.cover_letter_path
                     }
                 });
                 
                 resultDiv.className = 'result';
                 resultDiv.innerHTML += '<p>✅ Email sent successfully!</p>';
+                
+            } catch (error) {
+                throw error;
+            }
+        }
+        
+        async function processCandidateMatchingChain(email, resultDiv) {
+            try {
+                // Find best candidate
+                const matchingResult = await callAPI('/tools/candidate_matcher', {
+                    input: { email_text: email.body }
+                });
+                
+                if (matchingResult.status === 'error') {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML += `<p>❌ ${matchingResult.message}</p>`;
+                    return;
+                }
+                
+                const bestCandidate = matchingResult.best_candidate;
+                
+                // Display candidate info
+                const candidateInfo = `
+                    <div class="candidate-card">
+                        <h5>🏆 Best Candidate: ${bestCandidate.name}</h5>
+                        <p><strong>Email:</strong> ${bestCandidate.email}</p>
+                        <p class="candidate-score">Match Score: ${bestCandidate.breakdown.overall_match}</p>
+                        <div class="score-breakdown">
+                            Skills: ${bestCandidate.breakdown.skills_match} | 
+                            Experience: ${bestCandidate.breakdown.experience_match} | 
+                            Education: ${bestCandidate.breakdown.education_match}
+                        </div>
+                    </div>
+                `;
+                resultDiv.innerHTML += candidateInfo;
+                
+                // Process application for best candidate
+                const interpretation = { output: { job_info: matchingResult.job_requirements } };
+                await processUserRequest(bestCandidate.user_id, interpretation, resultDiv, email);
                 
             } catch (error) {
                 throw error;
@@ -314,7 +425,6 @@ HTML_TEMPLATE = """
             }
             
             const result = await response.json();
-            
             if (result.error) {
                 throw new Error(result.error);
             }
@@ -330,7 +440,6 @@ HTML_TEMPLATE = """
 def read_root():
     hr_emails = gmail_service.get_recent_hr_emails()
     
-    # Generate HTML for HR emails
     hr_emails_html = ""
     for email in hr_emails:
         hr_emails_html += f"""
@@ -346,19 +455,21 @@ def read_root():
                        .replace("{{ hr_emails_html }}", hr_emails_html) \
                        .replace("{{ hr_emails_json }}", json.dumps(hr_emails))
 
-# Initialize email interpreter
-email_interpreter_instance = EmailInterpreter()
-
 @app.post("/tools/email_interpreter")
 def email_interpreter_endpoint(context: Dict[str, Any]):
     try:
-        if "input" not in context or "email_text" not in context["input"]:
-            return {"error": "Missing email_text", "status": "error"}
-
         email_text = context["input"]["email_text"]
-        job_info = email_interpreter_instance.interpret_email(email_text)
+        job_info = email_interpreter.interpret_email(email_text)
         return {"output": {"job_info": job_info}}
+    except Exception as e:
+        return {"error": str(e), "status": "error"}
 
+@app.post("/tools/candidate_matcher")
+def candidate_matcher_endpoint(context: Dict[str, Any]):
+    try:
+        email_text = context["input"]["email_text"]
+        result = candidate_matcher.find_best_candidate(email_text)
+        return result
     except Exception as e:
         return {"error": str(e), "status": "error"}
 
@@ -369,61 +480,40 @@ def profile_retriever_endpoint(context: Dict[str, Any]):
             context["input"] = {}
         if "user_id" not in context["input"]:
             context["input"]["user_id"] = "default_user"
-        
-        result = profile_retriever(context)
-        return result
-        
+        return profile_retriever(context)
     except Exception as e:
         return {"error": str(e), "status": "error"}
 
 @app.post("/tools/resume_builder")
 def resume_builder_endpoint(context: Dict[str, Any]):
     try:
-        if "output" not in context:
-            return {"error": "Missing 'output' in context", "status": "error"}
-        
         if "input" not in context:
             context["input"] = {}
         if "user_id" not in context["input"]:
             context["input"]["user_id"] = "default_user"
-        
-        result = resume_builder(context)
-        return result
-        
+        return resume_builder(context)
     except Exception as e:
         return {"error": str(e), "status": "error"}
 
 @app.post("/tools/cover_letter_writer")
 def cover_letter_endpoint(context: Dict[str, Any]):
     try:
-        if "output" not in context:
-            return {"error": "Missing 'output' in context", "status": "error"}
-        
         if "input" not in context:
             context["input"] = {}
         if "user_id" not in context["input"]:
             context["input"]["user_id"] = "default_user"
-        
-        result = cover_letter_writer(context)
-        return result
-        
+        return cover_letter_writer(context)
     except Exception as e:
         return {"error": str(e), "status": "error"}
 
 @app.post("/tools/reply_email_generator")
 def reply_email_generator_endpoint(context: Dict[str, Any]):
     try:
-        if "output" not in context:
-            return {"error": "Missing 'output' in context", "status": "error"}
-        
         if "input" not in context:
             context["input"] = {}
         if "user_id" not in context["input"]:
             context["input"]["user_id"] = "default_user"
-        
-        result = reply_email_generator(context)
-        return result
-        
+        return reply_email_generator(context)
     except Exception as e:
         return {"error": str(e), "status": "error"}
 
@@ -433,21 +523,14 @@ def send_reply_email_endpoint(context: Dict[str, Any]):
         output = context.get("output", {})
         to_email = context.get("input", {}).get("to_email", "hr@example.com")
 
-        if not all(k in output for k in ["email_subject", "email_body", "resume_path", "cover_letter_path"]):
-            return {"error": "Missing email components", "status": "error"}
-
         send_result = send_email_with_attachments(
             to_email=to_email,
             subject=output["email_subject"],
             body=output["email_body"],
-            attachments=[
-                output["resume_path"],
-                output["cover_letter_path"]
-            ]
+            attachments=[output["resume_path"], output["cover_letter_path"]]
         )
 
         return {"status": "success", "message_id": send_result.get("id", "N/A")}
-
     except Exception as e:
         return {"error": str(e), "status": "error"}
 
@@ -455,5 +538,6 @@ if __name__ == "__main__":
     print("🚀 Starting MCP Gmail Integration Server...")
     print("✓ Gmail API integrated")
     print("✓ MCP tools available")
+    print("✓ Candidate matching enabled")
     print("✓ Web interface: http://localhost:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)

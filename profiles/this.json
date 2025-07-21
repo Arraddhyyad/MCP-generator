@@ -1,0 +1,13 @@
+{
+  "user_id": "this",
+  "name": "This",
+  "email": "this@example.com",
+  "phone": "Not provided",
+  "education": [],
+  "experience": [],
+  "skills": [],
+  "resume_path": null,
+  "cover_letter_path": null,
+  "created_at": "2025-07-21T12:35:44.209110",
+  "updated_at": "2025-07-21T12:35:44.209110"
+}

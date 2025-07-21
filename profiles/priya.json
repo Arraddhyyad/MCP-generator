@@ -1,26 +1,40 @@
 {
-  "name": "Priya Mehta",
-  "email": "priya.mehta@example.com",
-  "phone": "+91-9876543210",
+  "name": "Priya Sharma",
+  "email": "priya.sharma@example.com",
+  "phone": "+1-555-9876",
   "education": [
-    "B.Tech in Information Technology, VIT University",
-    "Relevant Coursework: Web Technologies, UI/UX Design"
+    {
+      "degree": "M.S. in Artificial Intelligence",
+      "institution": "University of California, Berkeley",
+      "year": 2023,
+      "details": "Focused on deep learning, NLP, and AI ethics"
+    }
   ],
   "experience": [
-    "Frontend Intern - Built responsive components using React and Tailwind",
-    "Freelance Web Developer - Created 5+ portfolio and e-commerce websites"
+    {
+      "role": "AI Engineer",
+      "company": "OpenAI",
+      "duration_years": 1.5,
+      "details": "Built NLP models and deployed them in production"
+    },
+    {
+      "role": "Research Assistant",
+      "company": "Berkeley AI Lab",
+      "duration_years": 0.8,
+      "details": "Worked on transformers and large-scale text generation"
+    }
   ],
   "skills": [
-    "HTML",
-    "CSS",
-    "JavaScript",
-    "React.js",
-    "TailwindCSS",
-    "TypeScript",
-    "Figma",
-    "Git",
-    "Responsive Design",
-    "UI/UX Principles"
+    "Python",
+    "Deep Learning",
+    "NLP",
+    "Transformers",
+    "TensorFlow",
+    "PyTorch",
+    "API Development",
+    "GitHub",
+    "Data Pipelines",
+    "Model Optimization"
   ],
   "resume_path": null,
   "cover_letter_path": null

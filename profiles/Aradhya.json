@@ -1,9 +1,41 @@
 {
-  "name": "Aradhya",
-  "email": "Aradhya@example.com",
-  "education": [],
-  "experience": [],
-  "skills": [],
+  "name": "Aradhya Dixit",
+  "email": "aradhya.dixit@example.com",
+  "phone": "+1-555-1345",
+  "education": [
+    {
+      "degree": "B.S. in Computer Science",
+      "institution": "Arizona State University",
+      "year": 2025,
+      "details": "Specialization in AI/ML and Autonomous Agents"
+    }
+  ],
+  "experience": [
+    {
+      "role": "AI Research Intern",
+      "company": "Tech Mahindra Makers Lab",
+      "duration_years": 0.7,
+      "details": "Worked on autonomous agents and enterprise AI solutions"
+    },
+    {
+      "role": "Undergraduate Research Aide",
+      "company": "ASU AI Lab",
+      "duration_years": 0.5,
+      "details": "Built ML pipelines for NLP and computer vision tasks"
+    }
+  ],
+  "skills": [
+    "Python",
+    "Machine Learning",
+    "Deep Learning",
+    "NLP",
+    "PyTorch",
+    "TensorFlow",
+    "FastAPI",
+    "SQL",
+    "Git",
+    "MLOps"
+  ],
   "resume_path": null,
   "cover_letter_path": null
 }

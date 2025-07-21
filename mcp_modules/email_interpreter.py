@@ -1,6 +1,6 @@
 """
-Enhanced Email Interpreter Module
-Extracts job information from HR emails using OpenAI with sector detection and latest job requirements
+Enhanced Email Interpreter Module with Candidate Matching
+Extracts job information from HR emails and can find best candidates from profiles
 """
 import openai
 import json
@@ -8,6 +8,8 @@ import os
 from typing import Dict, Any, List
 from datetime import datetime
 from dotenv import load_dotenv
+import re
+from utils import safe_string_processing
 
 load_dotenv()
 
@@ -17,6 +19,25 @@ class EmailInterpreter:
         self.client = openai.OpenAI(
             api_key=api_key or os.getenv('OPENAI_API_KEY')
         )
+        
+        # Patterns to detect "find best candidate" requests
+        self.find_candidate_patterns = [
+            r'find\s+(?:the\s+)?best\s+candidate',
+            r'who\s+(?:is\s+)?(?:the\s+)?best\s+(?:suited\s+)?(?:for\s+)?(?:this\s+)?(?:job|position|role)',
+            r'recommend\s+(?:a\s+)?candidate',
+            r'suggest\s+(?:a\s+)?(?:suitable\s+)?candidate',
+            r'which\s+candidate\s+(?:is\s+)?(?:best\s+)?(?:suited\s+)?(?:for\s+)?(?:this\s+)?(?:job|position|role)',
+            r'select\s+(?:the\s+)?(?:best\s+)?candidate',
+            r'choose\s+(?:the\s+)?(?:best\s+)?candidate',
+            r'match\s+(?:a\s+)?candidate\s+(?:for\s+)?(?:this\s+)?(?:job|position|role)',
+            r'pick\s+(?:the\s+)?(?:best\s+)?candidate',
+            r'identify\s+(?:the\s+)?(?:best\s+)?candidate',
+            r'shortlist\s+(?:the\s+)?(?:best\s+)?candidate',
+            r'from\s+(?:our\s+)?(?:available\s+)?(?:candidate\s+)?profiles?',
+            r'from\s+(?:our\s+)?(?:talent\s+)?(?:pool|database)',
+            r'review\s+(?:our\s+)?(?:candidate\s+)?profiles?',
+            r'screen\s+(?:our\s+)?(?:candidate\s+)?profiles?'
+        ]
         
         # Latest industry trends and requirements (2024-2025)
         self.sector_requirements = {
@@ -56,6 +77,60 @@ class EmailInterpreter:
                 "certifications": ["Teaching certification", "Educational technology certifications"]
             }
         }
+
+    def detect_request_type(self, email_text: str) -> str:
+        """
+        Detect if the email is asking for a specific user's resume or to find the best candidate
+        """
+        email_lower = email_text.lower()
+        
+        # Check for "find best candidate" patterns
+        for pattern in self.find_candidate_patterns:
+            if re.search(pattern, email_lower):
+                return "find_best_candidate"
+        
+        # Check for specific user request patterns
+        user_patterns = [
+            r'resume\s+(?:of\s+|for\s+)?([a-zA-Z0-9_]+)',
+            r'profile\s+(?:of\s+|for\s+)?([a-zA-Z0-9_]+)',
+            r'send\s+([a-zA-Z0-9_]+)(?:\'s)?\s+resume',
+            r'([a-zA-Z0-9_]+)\s+(?:for\s+)?(?:this\s+)?(?:job|position|role)',
+            r'hire\s+([a-zA-Z0-9_]+)',
+            r'consider\s+([a-zA-Z0-9_]+)',
+            r'([a-zA-Z0-9_]+)\s+(?:would\s+be\s+)?(?:suitable|good|perfect)\s+(?:for\s+)?(?:this\s+)?(?:job|position|role)'
+        ]
+        
+        for pattern in user_patterns:
+            if re.search(pattern, email_lower):
+                return "specific_user"
+        
+        return "general_job_posting"
+
+    def extract_user_id(self, email_text: str) -> str:
+        """
+        Extract specific user ID from email text
+        """
+        email_lower = email_text.lower()
+        
+        # Patterns to find user ID
+        user_patterns = [
+            r'resume\s+(?:of\s+|for\s+)?([a-zA-Z0-9_]+)',
+            r'profile\s+(?:of\s+|for\s+)?([a-zA-Z0-9_]+)',
+            r'send\s+([a-zA-Z0-9_]+)(?:\'s)?\s+resume',
+            r'([a-zA-Z0-9_]+)\s+(?:for\s+)?(?:this\s+)?(?:job|position|role)',
+            r'hire\s+([a-zA-Z0-9_]+)',
+            r'consider\s+([a-zA-Z0-9_]+)',
+            r'([a-zA-Z0-9_]+)\s+(?:would\s+be\s+)?(?:suitable|good|perfect)\s+(?:for\s+)?(?:this\s+)?(?:job|position|role)'
+        ]
+        
+        for pattern in user_patterns:
+            match = re.search(pattern, email_lower)
+            if match:
+                user_id = match.group(1).strip()
+                if user_id and len(user_id) > 1:  # Ensure it's not just a single letter
+                    return user_id
+        
+        return "default_user"
 
     def detect_company_sector(self, email_text: str, company_name: str = None) -> str:
         """
@@ -116,42 +191,12 @@ class EmailInterpreter:
 
     def interpret_email(self, email_text: str) -> Dict[str, Any]:
         """
-        Enhanced email interpretation with user ID extraction, sector detection and latest requirements
+        Enhanced email interpretation with request type detection
         """
-        # First, extract user ID from email text
-        user_id_prompt = f"""
-        Extract the username/user ID mentioned in this email. Look for patterns like:
-        - "resume of [username]"
-        - "profile of [username]"
-        - "[username] for this job"
-        - "send [username]'s resume"
+        # Detect the type of request
+        request_type = self.detect_request_type(email_text)
         
-        Email content:
-        {email_text}
-        
-        Return only the username/user ID found, or "default_user" if none found.
-        """
-        
-        extracted_user_id = "default_user"
-        try:
-            user_response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are an expert at extracting usernames from text. Return only the username, nothing else."},
-                    {"role": "user", "content": user_id_prompt}
-                ],
-                temperature=0.1
-            )
-            
-            extracted_user_id = user_response.choices[0].message.content.strip()
-            if not extracted_user_id or extracted_user_id == "None":
-                extracted_user_id = "default_user"
-                
-        except Exception as e:
-            print(f"Error extracting user ID: {e}")
-            extracted_user_id = "default_user"
-        
-        # Now extract basic job information
+        # Extract basic job information using OpenAI
         basic_prompt = f"""
         Analyze this HR email and extract the following information in JSON format:
         - job_title: The position being offered/discussed
@@ -182,8 +227,23 @@ class EmailInterpreter:
             
             basic_info = json.loads(response.choices[0].message.content)
             
-            # Add the extracted user ID to the job info
-            basic_info["user_id"] = extracted_user_id
+            # Handle different request types
+            if request_type == "find_best_candidate":
+                basic_info["user_id"] = "FIND_BEST_CANDIDATE"
+                basic_info["request_type"] = "find_best_candidate"
+                basic_info["action_needed"] = "find and recommend best candidate from profiles"
+                basic_info["use_candidate_matcher"] = True  # NEW: Flag for profile retriever
+            elif request_type == "specific_user":
+                extracted_user_id = self.extract_user_id(email_text)
+                basic_info["user_id"] = extracted_user_id
+                basic_info["request_type"] = "specific_user"
+                basic_info["action_needed"] = f"send resume and cover letter for {extracted_user_id}"
+                basic_info["use_candidate_matcher"] = False
+            else:
+                basic_info["user_id"] = "default_user"
+                basic_info["request_type"] = "general_job_posting"
+                basic_info["action_needed"] = "send resume and cover letter"
+                basic_info["use_candidate_matcher"] = False
             
             # Detect company sector
             sector = self.detect_company_sector(email_text, basic_info.get("company"))
@@ -197,8 +257,6 @@ class EmailInterpreter:
             
             # Add sector-specific information
             basic_info["detected_sector"] = sector
-            
-            # Add enhanced requirements based on sector
             basic_info["recommended_skills"] = latest_requirements["trending_skills"]
             basic_info["required_soft_skills"] = latest_requirements["soft_skills"]
             basic_info["relevant_certifications"] = latest_requirements["certifications"]
@@ -206,26 +264,75 @@ class EmailInterpreter:
             # Add market context
             basic_info["market_trends"] = f"Latest trends for {sector} sector as of {datetime.now().strftime('%Y-%m-%d')}"
             
+            # Store original email for candidate matcher
+            basic_info["original_email"] = email_text
+            
             return basic_info
             
         except Exception as e:
-         print(f"Error in email_interpreter: {e}")
-        # Return error context with default job_info
+            print(f"Error in email_interpreter: {e}")
+            # Return error context with default job_info
+            return {
+                "job_title": "General Position",
+                "company": "Unknown Company",
+                "skills": ["Communication", "Problem-solving", "Teamwork"],
+                "deadline": None,
+                "action_needed": "send resume",
+                "user_id": "default_user",
+                "request_type": "general_job_posting",
+                "detected_sector": "other",
+                "recommended_skills": ["Communication", "Problem-solving", "Teamwork"],
+                "required_soft_skills": ["Adaptability", "Time management"],
+                "relevant_certifications": ["Industry-specific certifications"],
+                "market_trends": "General industry trends",
+                "use_candidate_matcher": False,
+                "original_email": email_text,
+                "error": str(e)
+            }
+
+
+# MCP-compliant function for email interpretation
+def email_interpreter(context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    MCP-compliant function to interpret email and set up context for profile retrieval
+    
+    Args:
+        context: Dict with 'input' containing 'email_text'
+    
+    Returns:
+        Updated context with job_info and coordination flags
+    """
+    try:
+        interpreter = EmailInterpreter()
+        email_text = context.get("input", {}).get("email_text", "")
+        
+        job_info = interpreter.interpret_email(email_text)
+        
+        if "output" not in context:
+            context["output"] = {}
+        
+        context["output"]["job_info"] = job_info
+        context["status"] = "success"
+        
+        # Set coordination flags for profile retriever
+        context["coordination"] = {
+            "request_type": job_info.get("request_type", "general_job_posting"),
+            "user_id": job_info.get("user_id", "default_user"),
+            "use_candidate_matcher": job_info.get("use_candidate_matcher", False),
+            "original_email": job_info.get("original_email", email_text)
+        }
+        
+        return context
+        
+    except Exception as e:
         return {
             "status": "error",
             "error": str(e),
-            "output": {
-                "job_info": {
-                    "job_title": "General Position",
-                    "company": "Unknown Company",
-                    "skills": ["Communication", "Problem-solving", "Teamwork"],
-                    "deadline": None,
-                    "action_needed": "send resume",
-                    "detected_sector": "other",
-                    "recommended_skills": ["Communication", "Problem-solving", "Teamwork"],
-                    "required_soft_skills": ["Adaptability", "Time management"],
-                    "relevant_certifications": ["Industry-specific certifications"],
-                    "market_trends": "General industry trends"
-                }
+            "output": {},
+            "coordination": {
+                "request_type": "general_job_posting",
+                "user_id": "default_user",
+                "use_candidate_matcher": False,
+                "original_email": context.get("input", {}).get("email_text", "")
             }
         }

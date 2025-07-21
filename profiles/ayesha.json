@@ -1,26 +1,40 @@
 {
-  "name": "Ayesha Siddiqui",
-  "email": "ayesha.siddiqui@example.com",
-  "phone": "+91-9988776655",
+  "name": "Ayesha Khan",
+  "email": "ayesha.khan@example.com",
+  "phone": "+1-555-6789",
   "education": [
-    "Bachelor of Design, NIFT Delhi",
-    "Relevant Coursework: Human-Centered Design, Interaction Design"
+    {
+      "degree": "B.Tech in Information Technology",
+      "institution": "Delhi Technological University",
+      "year": 2023,
+      "details": "Specialization in data analytics and cloud computing"
+    }
   ],
   "experience": [
-    "Design Intern - Revamped UX for ed-tech mobile app",
-    "Freelance Designer - Conducted 10+ user research studies"
+    {
+      "role": "Data Analyst Intern",
+      "company": "Accenture",
+      "duration_years": 0.6,
+      "details": "Created dashboards and performed exploratory data analysis"
+    },
+    {
+      "role": "Junior Data Scientist",
+      "company": "Infosys",
+      "duration_years": 1.0,
+      "details": "Developed ML models for customer churn prediction"
+    }
   ],
   "skills": [
-    "Figma",
-    "Adobe XD",
-    "User Research",
-    "Wireframing",
-    "Prototyping",
-    "Design Thinking",
-    "Interaction Design",
-    "Accessibility",
-    "Usability Testing",
-    "Visual Design"
+    "Python",
+    "Pandas",
+    "Machine Learning",
+    "SQL",
+    "Power BI",
+    "Tableau",
+    "Cloud Computing",
+    "Git",
+    "Statistics",
+    "Data Cleaning"
   ],
   "resume_path": null,
   "cover_letter_path": null

@@ -8,6 +8,8 @@ import os
 import pdfkit
 from jinja2 import Template
 from typing import Dict, Any
+import json
+from utils import safe_string_processing
 
 
 class CoverLetterWriter:
@@ -77,28 +79,25 @@ class CoverLetterWriter:
     def generate_cover_letter_content(self, user_profile: Dict[str, Any], job_info: Dict[str, Any]) -> str:
         """
         Generate cover letter content using OpenAI
-        
-        Args:
-            user_profile: User's profile data
-            job_info: Job information extracted from email
-            
-        Returns:
-            Generated cover letter content
         """
-        
+        edu_list = safe_string_processing(user_profile.get('education', []), to_lower=False)
+        exp_list = safe_string_processing(user_profile.get('experience', []), to_lower=False)
+        skills_list = safe_string_processing(user_profile.get('skills', []), to_lower=False)
+        job_skills_list = safe_string_processing(job_info.get('skills', []), to_lower=False)
+
         prompt = f"""
         Write a professional cover letter for the following job application:
         
         Candidate Information:
         - Name: {user_profile.get('name', 'Candidate')}
-        - Education: {', '.join(user_profile.get('education', []))}
-        - Experience: {', '.join(user_profile.get('experience', []))}
-        - Skills: {', '.join(user_profile.get('skills', []))}
+        - Education: {', '.join(edu_list)}
+        - Experience: {', '.join(exp_list)}
+        - Skills: {', '.join(skills_list)}
         
         Job Information:
         - Position: {job_info.get('job_title', 'Position')}
         - Company: {job_info.get('company', 'Company')}
-        - Required Skills: {', '.join(job_info.get('skills', []))}
+        - Required Skills: {', '.join(job_skills_list)}
         
         Requirements:
         1. Write 3-4 paragraphs
@@ -129,30 +128,17 @@ class CoverLetterWriter:
             return f"""
             <p>Dear Hiring Manager,</p>
             <p>I am writing to express my strong interest in the {job_info.get('job_title', 'position')} role at {job_info.get('company', 'your company')}.</p>
-            <p>With my background in {', '.join(user_profile.get('education', ['relevant field']))}, I believe I would be a valuable addition to your team.</p>
+            <p>With my background in {', '.join(edu_list or ['relevant field'])}, I believe I would be a valuable addition to your team.</p>
             <p>I look forward to discussing how my skills and experience can contribute to your organization's success.</p>
             """
     
     def generate_cover_letter(self, user_profile: Dict[str, Any], job_info: Dict[str, Any], user_id: str) -> str:
-        """
-        Generate complete cover letter PDF
-        
-        Args:
-            user_profile: User's profile data
-            job_info: Job information extracted from email
-            user_id: User identifier
-            
-        Returns:
-            Path to generated cover letter PDF
-        """
-        # Create user output directory
+        """Generate complete cover letter PDF"""
         user_output_dir = os.path.join(self.outputs_dir, user_id)
         self._ensure_directory_exists(user_output_dir)
         
-        # Generate cover letter content
         cover_letter_content = self.generate_cover_letter_content(user_profile, job_info)
         
-        # Prepare template data
         from datetime import datetime
         template_data = {
             "name": user_profile.get("name", user_id),
@@ -164,15 +150,12 @@ class CoverLetterWriter:
             "cover_letter_content": cover_letter_content
         }
         
-        # Render HTML
         template = Template(self.cover_letter_template)
         html_content = template.render(**template_data)
         
-        # Generate PDF
         cover_letter_path = os.path.join(user_output_dir, "cover_letter.pdf")
         
         try:
-            # Configure pdfkit options
             options = {
                 'page-size': 'A4',
                 'margin-top': '0.75in',
@@ -189,7 +172,6 @@ class CoverLetterWriter:
             
         except Exception as e:
             print(f"Error generating cover letter PDF: {e}")
-            # Fallback: save as HTML
             html_path = os.path.join(user_output_dir, "cover_letter.html")
             with open(html_path, 'w') as f:
                 f.write(html_content)
@@ -197,27 +179,45 @@ class CoverLetterWriter:
 
 
 def cover_letter_writer(context: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    MCP-compliant function to write cover letter
-    
-    Args:
-        context: Dict with 'output' containing 'user_profile' and 'job_info'
-        
-    Returns:
-        Updated context with cover letter path
-    """
+    """MCP-compliant function to write or reuse cover letter"""
     writer = CoverLetterWriter()
     
     user_profile = context["output"]["user_profile"]
     job_info = context["output"]["job_info"]
     user_id = context["input"]["user_id"]
     
-    cover_letter_path = writer.generate_cover_letter(user_profile, job_info, user_id)
+    profile_path = os.path.join("profiles", f"{user_id}.json")
+    cover_letter_path = None
+
+    if os.path.exists(profile_path):
+        try:
+            with open(profile_path, "r", encoding="utf-8") as f:
+                profile_data = json.load(f)
+            
+            existing_cl_path = profile_data.get("cover_letter_path")
+            if existing_cl_path and os.path.exists(existing_cl_path):
+                print(f"✅ Reusing existing cover letter for {user_id}")
+                cover_letter_path = existing_cl_path
+        except Exception as e:
+            print(f"Error reading profile JSON for {user_id}: {e}")
+
+    if not cover_letter_path:
+        cover_letter_path = writer.generate_cover_letter(user_profile, job_info, user_id)
+        
+        if os.path.exists(profile_path):
+            try:
+                with open(profile_path, "r", encoding="utf-8") as f:
+                    profile_data = json.load(f)
+                
+                profile_data["cover_letter_path"] = cover_letter_path
+                
+                with open(profile_path, "w", encoding="utf-8") as f:
+                    json.dump(profile_data, f, indent=2)
+            except Exception as e:
+                print(f"Error updating profile JSON for {user_id}: {e}")
     
-    # Update context
     context["output"]["cover_letter_path"] = cover_letter_path
     
-    # Update profile with cover letter path
     if "retriever" in context["output"]:
         context["output"]["retriever"].update_profile_paths(user_id, cover_letter_path=cover_letter_path)
     
