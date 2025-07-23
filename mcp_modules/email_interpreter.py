@@ -130,3 +130,119 @@ class EmailInterpreter:
             print(f"OpenAI fallback failed: {e}")
 
         return "general_job_posting"
+
+    def interpret_email(self, email_content: str) -> Dict[str, Any]:
+        """
+        Main method to interpret email content and extract job requirements.
+        This is the method that's being called by your main application.
+        """
+        try:
+            # Detect the type of request first
+            request_type = self.detect_request_type(email_content)
+            
+            # Use OpenAI to extract job requirements and other details
+            prompt = f"""
+            Analyze the following email and extract job requirements, skills, and other relevant information.
+            
+            Email content:
+            {email_content}
+            
+            Please provide a structured response with:
+            1. Job title or position
+            2. Required skills (technical and soft skills)
+            3. Experience level required
+            4. Industry/sector
+            5. Key requirements
+            6. Any specific candidate preferences mentioned
+            
+            Format your response as JSON with the following structure:
+            {{
+                "job_title": "string",
+                "required_skills": ["skill1", "skill2"],
+                "experience_level": "string",
+                "industry": "string",
+                "key_requirements": "string",
+                "candidate_preferences": "string"
+            }}
+            """
+            
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are an expert HR assistant that extracts job requirements from emails. Always respond with valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=1000
+            )
+            
+            # Parse the AI response
+            ai_response = response.choices[0].message.content.strip()
+            
+            # Try to parse as JSON, fallback to structured text if needed
+            try:
+                job_details = json.loads(ai_response)
+            except json.JSONDecodeError:
+                # Fallback: create structured response from text
+                job_details = {
+                    "job_title": "Not specified",
+                    "required_skills": [],
+                    "experience_level": "Not specified",
+                    "industry": "Not specified",
+                    "key_requirements": ai_response,
+                    "candidate_preferences": "Not specified"
+                }
+            
+            # Add request type to the response
+            job_details["request_type"] = request_type
+            job_details["processed_at"] = datetime.now().isoformat()
+            
+            # If it's asking for best candidate, add industry-specific insights
+            if request_type == "find_best_candidate":
+                industry = job_details.get("industry", "").lower()
+                if industry in self.sector_requirements:
+                    job_details["trending_skills"] = self.sector_requirements[industry]["trending_skills"]
+                    job_details["recommended_certifications"] = self.sector_requirements[industry]["certifications"]
+            
+            return job_details
+            
+        except Exception as e:
+            print(f"Error in interpret_email: {e}")
+            return {
+                "error": str(e),
+                "request_type": "error",
+                "processed_at": datetime.now().isoformat()
+            }
+
+    def extract_specific_user(self, email_text: str) -> str:
+        """
+        Extract specific username from email when request_type is 'specific_user'
+        """
+        email_lower = email_text.lower()
+        
+        user_patterns = [
+            r'resume\s+(?:of\s+|for\s+)?([a-zA-Z0-9_]+)',
+            r'profile\s+(?:of\s+|for\s+)?([a-zA-Z0-9_]+)',
+            r'send\s+([a-zA-Z0-9_]+)(?:\'s)?\s+resume',
+            r'([a-zA-Z0-9_]+)\s+(?:for\s+)?(?:this\s+)?(?:job|position|role)',
+            r'hire\s+([a-zA-Z0-9_]+)',
+            r'consider\s+([a-zA-Z0-9_]+)',
+        ]
+        
+        for pattern in user_patterns:
+            match = re.search(pattern, email_lower)
+            if match:
+                return match.group(1)
+        
+        return None
+
+    def get_industry_requirements(self, industry: str) -> Dict[str, Any]:
+        """
+        Get industry-specific requirements and trending skills
+        """
+        industry_lower = industry.lower()
+        return self.sector_requirements.get(industry_lower, {
+            "trending_skills": [],
+            "soft_skills": [],
+            "certifications": []
+        })

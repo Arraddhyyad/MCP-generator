@@ -36,6 +36,6 @@
     "Git",
     "MLOps"
   ],
-  "resume_path": null,
-  "cover_letter_path": null
+  "resume_path": "outputs/Aradhya/resume.pdf",
+  "cover_letter_path": "outputs/Aradhya/cover_letter.pdf"
 }
